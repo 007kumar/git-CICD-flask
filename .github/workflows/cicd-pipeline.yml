@@ -1,45 +1,46 @@
-name: Flask CI/CD Pipeline
+name: Python CI/CD Pipeline
 
 on:
   push:
     branches:
-      - main
-      - staging
-  release:
-    types:
-      - created
+      - staging    # Trigger on changes pushed to the staging branch
+    tags:
+      - 'v*'       # Trigger on version tags for production deployment
+  pull_request:
+    branches:
+      - staging    # Trigger on pull requests targeting the staging branch
 
 jobs:
-  # Job 1: Set up Python and Install Dependencies
   install_dependencies:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-      
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
-
+          python-version: '3.x'
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt  # Install dependencies from requirements.txt
 
-  # Job 2: Run Tests
   run_tests:
     runs-on: ubuntu-latest
-    needs: install_dependencies
+    needs: install_dependencies  # Ensure this job runs after dependencies are installed
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
-
+          python-version: '3.x'
+          
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -47,79 +48,67 @@ jobs:
 
       - name: Run tests
         run: |
-          echo "Running tests"
-          # You can add tests later with pytest or other frameworks
+          pytest --maxfail=1 --disable-warnings -q  # Run tests with pytest
 
-  # Job 3: Build application (if tests pass)
   build:
     runs-on: ubuntu-latest
-    needs: run_tests
+    needs: run_tests  # Ensure this job runs after tests pass
+
+    if: success()  # Only proceed if tests pass
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Build application
         run: |
-          echo "Build step: Preparing app for deployment"
+          # Add any build commands here, like packaging the application, building docker images, etc.
+          echo "Build process goes here"  # Placeholder for the build step
 
-  # Job 4: Deploy to Staging (on push to staging branch)
   deploy_staging:
     runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/staging'
+    needs: build  # Ensure this job runs after build
+    if: github.ref == 'refs/heads/staging'  # Only trigger for staging branch
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
+      - name: Checkout code
+        uses: actions/checkout@v3
+        
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Deploy to staging environment
+          python-version: '3.x'
+          
+      - name: Deploy to Staging
         run: |
           echo "Deploying to staging environment..."
-          # Example: SSH into your server and deploy the app
-          ssh -o StrictHostKeyChecking=no -i ${{ secrets.DEPLOYMENT_KEY }} user@staging-server "cd /path/to/staging/directory && git pull && sudo systemctl restart flask-app"
-          # Adjust the above command based on your server setup (e.g., restart Flask app)
-
-  # Job 5: Deploy to Production (on release tag)
+          # Replace this with actual deployment commands, such as:
+          # - SSH into a server and pull the latest changes
+          # - Use Kubernetes (kubectl apply -f staging-deployment.yaml)
+          # - Docker (docker-compose up -d)
+          # For example:
+          # ssh user@staging-server "docker pull my-image:latest && docker-compose up -d"
+          
   deploy_production:
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'release'
+    needs: build  # Ensure this job runs after build
+    if: startsWith(github.ref, 'refs/tags/v')  # Only trigger for version tags
+    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.x'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Deploy to production environment
+      - name: Deploy to Production
         run: |
           echo "Deploying to production environment..."
-          # Example: SSH into your server and deploy the app
-          ssh -o StrictHostKeyChecking=no -i ${{ secrets.DEPLOYMENT_KEY }} user@production-server "cd /path/to/production/directory && git pull && sudo systemctl restart flask-app"
-          # Adjust the above command based on your production setup (e.g., restart Flask app)
+          # Replace this with actual production deployment commands, such as:
+          # - SSH into production server
+          # - Use Kubernetes (kubectl apply -f production-deployment.yaml)
+          # - Docker (docker-compose up -d)
+          # For example:
+          # ssh user@production-server "docker pull my-image:latest && docker-compose up -d"
